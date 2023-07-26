@@ -1,0 +1,11 @@
+name: Permute
+version: 0.1.1
+synopsis: A type for representing abstract permutations.
+category: This library establishes a type representing an abstract permutation, and exposes several functions for using and obtaining information from them.
+description: see source
+maintainer: Tristan Ballman
+github: SquidicusJohnson/Permute
+
+library:
+  exposed-modules:
+    - Permute

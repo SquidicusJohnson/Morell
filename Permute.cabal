@@ -1,0 +1,28 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.35.2.
+--
+-- see: https://github.com/sol/hpack
+
+name:           Permute
+version:        0.1.1
+synopsis:       A type for representing abstract permutations.
+description:    see source
+category:       This library establishes a type representing an abstract permutation, and exposes several functions for using and obtaining information from them.
+homepage:       https://github.com/SquidicusJohnson/Permute#readme
+bug-reports:    https://github.com/SquidicusJohnson/Permute/issues
+maintainer:     Tristan Ballman
+license:        GPL-2
+license-file:   LICENSE
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/SquidicusJohnson/Permute
+
+library
+  exposed-modules:
+      Permute
+  other-modules:
+      Paths_Permute
+  default-language: Haskell2010
