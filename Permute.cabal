@@ -12,7 +12,7 @@ category:       This library establishes a type representing an abstract permuta
 homepage:       https://github.com/SquidicusJohnson/Permute#readme
 bug-reports:    https://github.com/SquidicusJohnson/Permute/issues
 maintainer:     Tristan Ballman
-license:        GPL-2
+license:        MIT
 license-file:   LICENSE
 build-type:     Simple
 
@@ -21,8 +21,6 @@ source-repository head
   location: https://github.com/SquidicusJohnson/Permute
 
 library
-  exposed-modules:
-      Permute
-  other-modules:
-      Paths_Permute
+  exposed-modules: Data.Permute
+  build-depends: base, containers
   default-language: Haskell2010

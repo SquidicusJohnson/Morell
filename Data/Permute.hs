@@ -1,4 +1,4 @@
-module Permutation (
+module Data.Permute (
   Permutation
   , inverse
   , size
@@ -14,6 +14,7 @@ module Permutation (
   , toFactoriadic
   , fromFactoriadic
   , toTranspositions
+  , reduceTranspositions
   , fromCycles
   , toCycles
   , imageOfIndex
@@ -64,7 +65,7 @@ instance Monoid Permutation where
 
 -- | Get the inverse permutation of a permutation p.
 inverse :: Permutation -> Permutation
-inverse = fromReverseTranspositions . toTranspositions
+inverse = reduceTranspositions . reverse . toTranspositions
 
 -- | The largest index moved by a permutation.
 size :: Permutation -> Int
@@ -85,8 +86,7 @@ period = foldr (lcm . length) 1 . toCycles
 compose :: Permutation -> Permutation -> Permutation
 compose (Permutation 0) h = h
 compose g (Permutation 0) = g
-compose g h = fromReverseTranspositions $ foldl (flip leftMultiplyTransposition) (reverse $ toTranspositions g) (toTranspositions h)
-
+compose g h = fromReverseTranspositions $ foldl (flip absorbTransposition) (reverse $ toTranspositions g) (toTranspositions h)
 
 -- | Permute a list by a permutation, returns Nothing if the list is
 --   shorter than the size of the permutation.
@@ -140,6 +140,10 @@ fromFactoriadic = unwrap . fromTranspositions . zip [2..]
 toTranspositions :: Permutation -> [(Int, Int)]
 toTranspositions = zip [2..] . toFactoriadic
 
+-- | Reduces an arbitrary list of transpositions to a Permutation
+reduceTranspositions :: [(Int, Int)] -> Permutation
+reduceTranspositions = fromReverseTranspositions . foldl (flip absorbTransposition) []
+
 -- | Convert a list of cycles to the corresponding Permutation.
 --   Individual cycles must not contain duplicate indices, but cycles do not
 --   need to be disjoint.
@@ -152,12 +156,12 @@ fromCycles = reduceTranspositions
            . filter (not . null)
 
 -- | Convert a permutation to cycle notation
-toCycles :: Permutation -> [[Int]]
-toCycles = map (\(i:is) -> i : reverse is ) . toInverseCycles
+toInverseCycles :: Permutation -> [[Int]]
+toInverseCycles = map (\(i:is) -> i : reverse is ) . toInverseCycles
 
 -- | Convert a permutation to cycle notation for its inverse
-toInverseCycles :: Permutation -> [[Int]]
-toInverseCycles = map (\(i,is) -> i:is )
+toCycles :: Permutation -> [[Int]]
+toCycles = map (\(i,is) -> i:is )
                 . M.toList
                 . foldr buildCycles M.empty
                 . filter (not . (== 0) . snd)
@@ -167,10 +171,10 @@ buildCycles :: (Int,Int) -> M.Map Int [Int] -> M.Map Int [Int]
 buildCycles (i, j) xss = case M.lookup j xss of
   Nothing -> case M.lookup i xss of
     Nothing -> M.insert j [i] xss
-    Just ks -> M.delete i $ M.insert j (i : xss!i) xss
+    Just ls -> M.delete i $ M.insert j (ls ++ [i]) xss
   Just ks -> case M.lookup i xss of
     Nothing -> M.adjust (i:) j xss
-    Just ls -> M.delete i $ M.insert j (xss!j ++ i : xss!i) xss
+    Just ls -> M.delete i $ M.insert j (ls  ++ i : ks) xss
 
 
 
@@ -192,30 +196,31 @@ swap (i, j) n
 fromTranspositions :: [(Int, Int)] -> Permutation
 fromTranspositions = Permutation . foldr (\(i,j) n -> (n + toInteger j) * toInteger (i-1) ) 0
 
-fromReverseTranspositions :: [(Int,Int)] -> Permutation
+fromReverseTranspositions :: [(Int, Int)] -> Permutation
 fromReverseTranspositions = Permutation . foldl (\n (i,j) -> (n + toInteger j) * toInteger (i-1) ) 0
 
 -- This function assumes that i > j, k > l, k is strictly descending, and (i 0) represents
 -- swapping i with nothing, or the identity permutation.
-leftMultiplyTransposition :: (Int, Int) -> [(Int, Int)] -> [(Int, Int)]
-leftMultiplyTransposition (i, j) ((k, l) : xs)
-  | i > k = (i, j) : (k, l) : xs
+absorbTransposition :: (Int, Int) -> [(Int, Int)] -> [(Int, Int)]
+absorbTransposition (i, j) [] = (i,j) : zip [i-1,i-2..2] (repeat 0)
+absorbTransposition (i, j) ((k, l) : xs)
+  | i > k = (i, j) : zip [i-1,i-2..k+1] (repeat 0) ++ (k, l) : xs
 
   -- (i 0) (k l) = (k l)
   | j == 0 = (k, l) : xs
   -- (i j) (i 0) = (i j)
   | i == k && l == 0 = (i, j) : xs
   -- (i j) (k 0) = (k 0) (i j)
-  | i <  k && l == 0 = (k, l) : leftMultiplyTransposition (i, j) xs
+  | i <  k && l == 0 = (k, l) : absorbTransposition (i, j) xs
 
   -- (i j) (k i) = (k j) (i j)
-  | i == l = (k, j) : leftMultiplyTransposition (i, j) xs
+  | i == l = (k, j) : absorbTransposition (i, j) xs
 
   -- (i j) (k j) = (k i) (i j)
-  | i < k && j == l = (k, i) : leftMultiplyTransposition (i, j) xs
+  | i < k && j == l = (k, i) : absorbTransposition (i, j) xs
 
   -- (i j) and (k l) are disjoint so (k l) (i j) = (i j) (k l)
-  | i < k && j /= l = (k, l) : leftMultiplyTransposition (i, j) xs
+  | i < k && j /= l = (k, l) : absorbTransposition (i, j) xs
 
   -- (i j) (i j) = (i 0)
   | i == k && j == l = (i, 0) : xs
@@ -225,4 +230,4 @@ leftMultiplyTransposition (i, j) ((k, l) : xs)
   -- these transpositions past each other one of them must have its larger index reduced.
   -- If our place values are descending it is not an issue, if they are ascending then
   -- this would require backtracking to guarantee we end up with valid factoriadic.
-  | i == k && j /= l = (i, l) : leftMultiplyTransposition (max j l, min j l) xs
+  | i == k && j /= l = (i, l) : absorbTransposition (max j l, min j l) xs
