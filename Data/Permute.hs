@@ -1,12 +1,14 @@
-module Data.Permute (
-  Permutation
+module Permute (
+    Permutation (Permutation)
   , inverse
   , size
   , parity
   , period
   , compose
   , actOnList
+  , actOnMonoid
   , inverseActOnList
+  , inverseActOnMonoid
   , toIndices
   , toIndices'
   , toInverseIndices
@@ -24,6 +26,7 @@ module Data.Permute (
 import Data.List (unfoldr)
 import qualified Data.Map as M
 import Data.Map ((!))
+import Data.Group
 
 -- | Wraps an Integer and represents an abstract permutation.
 --   Particulary every positive integer represents a finite set of transpositions.
@@ -36,6 +39,9 @@ instance Semigroup Permutation where
 
 instance Monoid Permutation where
   mempty = Permutation 0
+
+instance Group Permutation where
+  invert = inverse
 
 -- This package establishes a Permutation type, representing an abstract permutation
 -- on the set of positive integers [1..] which moves finitely many indices.
@@ -90,18 +96,26 @@ compose g h = fromReverseTranspositions $ foldl (flip absorbTransposition) (reve
 
 -- | Permute a list by a permutation, returns Nothing if the list is
 --   shorter than the size of the permutation.
-actOnList :: Permutation -> [a] -> Maybe [a]
+actOnList :: Permutation -> [a] -> [a]
 actOnList p xs = if length xs < size p
-    then Nothing
-    else Just $ map (\i -> xs!!i) ( take (length xs) (toIndices' p) )
+    then error $ "List to small for a permutation of size " ++ show (size p)
+    else map (\i -> xs!!(imageOfIndex p (i-1) ) ) ( take (length xs) [1..] )
+
+-- | Acts on a list but fills nonexistant indices with mempty
+actOnMonoid :: Monoid a => Permutation -> [a] -> [a]
+actOnMonoid p xs = let xs' = xs ++ repeat mempty
+  in map (\i -> xs!!(imageOfIndex p (i-1) ) ) [1 .. size p]
 
 -- | Permute a list by the inverse of a permutation, returns Nothing if
 --   the list is shorter than the size of the permutation.
-inverseActOnList :: Permutation -> [a] -> Maybe [a]
+inverseActOnList :: Permutation -> [a] -> [a]
 inverseActOnList p xs = if length xs < size p
-    then Nothing
-    else Just $ map (\i -> xs!!i) ( take (length xs) (toInverseIndices' p))
+    then error $ "List to small for a permutation of size " ++ show (size p)
+    else map (\i -> xs!!(preimageOfIndex p (i-1) ) ) ( take (length xs) (toInverseIndices' p))
 
+inverseActOnMonoid :: Monoid a => Permutation -> [a] -> [a]
+inverseActOnMonoid p xs = let xs' = xs ++ repeat mempty
+  in map (\i -> xs!!(imageOfIndex p (i-1) ) ) [1 .. size p]
 
 -- | Converts a permutation p to the result of it acting on the list [0 .. size p - 1].
 toIndices :: Permutation -> [Int]
